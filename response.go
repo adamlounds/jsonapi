@@ -54,7 +54,7 @@ func MarshalOnePayload(w io.Writer, model interface{}) error {
 func MarshalOnePayloadWithoutIncluded(w io.Writer, model interface{}) error {
 	included := make(map[string]*Node)
 
-	rootNode, err := visitModelNode(model, &included, true)
+	rootNode, err := VisitModelNode(model, &included, true)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func MarshalOnePayloadWithoutIncluded(w io.Writer, model interface{}) error {
 func MarshalOne(model interface{}) (*OnePayload, error) {
 	included := make(map[string]*Node)
 
-	rootNode, err := visitModelNode(model, &included, true)
+	rootNode, err := VisitModelNode(model, &included, true)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +81,16 @@ func MarshalOne(model interface{}) (*OnePayload, error) {
 	payload.Included = nodeMapValues(&included)
 
 	return payload, nil
+}
+
+func AddIncludedToOnePayload(payload *OnePayload, node *Node) {
+
+	payload.Included = append(payload.Included, node)
+}
+
+func AddIncludedToManyPayload(payload *ManyPayload, node *Node) {
+
+	payload.Included = append(payload.Included, node)
 }
 
 // MarshalManyPayloadWithoutIncluded writes a jsonapi response with many records,
@@ -161,7 +171,7 @@ func MarshalMany(models []interface{}) (*ManyPayload, error) {
 	included := map[string]*Node{}
 
 	for _, model := range models {
-		node, err := visitModelNode(model, &included, true)
+		node, err := VisitModelNode(model, &included, true)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +196,7 @@ func MarshalMany(models []interface{}) (*ManyPayload, error) {
 //
 // model interface{} should be a pointer to a struct.
 func MarshalOnePayloadEmbedded(w io.Writer, model interface{}) error {
-	rootNode, err := visitModelNode(model, nil, false)
+	rootNode, err := VisitModelNode(model, nil, false)
 	if err != nil {
 		return err
 	}
@@ -200,7 +210,7 @@ func MarshalOnePayloadEmbedded(w io.Writer, model interface{}) error {
 	return nil
 }
 
-func visitModelNode(model interface{}, included *map[string]*Node,
+func VisitModelNode(model interface{}, included *map[string]*Node,
 	sideload bool) (*Node, error) {
 	node := new(Node)
 
@@ -230,6 +240,7 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 
 		if (annotation == annotationClientID && len(args) != 1) ||
 			(annotation != annotationClientID && len(args) < 2) {
+			panic("weird args for model")
 			er = ErrBadJSONAPIStructTag
 			break
 		}
@@ -417,7 +428,7 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 					continue
 				}
 
-				relationship, err := visitModelNode(
+				relationship, err := VisitModelNode(
 					fieldValue.Interface(),
 					included,
 					sideload,
@@ -482,7 +493,7 @@ func visitModelNodeRelationships(models reflect.Value, included *map[string]*Nod
 	for i := 0; i < models.Len(); i++ {
 		n := models.Index(i).Interface()
 
-		node, err := visitModelNode(n, included, sideload)
+		node, err := VisitModelNode(n, included, sideload)
 		if err != nil {
 			return nil, err
 		}
